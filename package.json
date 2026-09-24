@@ -1,0 +1,53 @@
+{
+  "name": "declare",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Declare — a card game companion: shuffling, dealing, sessions and score tracking.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,magenta \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "tsx watch --clear-screen=false src/server/index.ts",
+    "dev:web": "vite",
+    "build": "prisma generate && vite build && npm run build:server",
+    "build:server": "esbuild src/server/index.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=dist/server/index.js",
+    "start": "prisma migrate deploy && node dist/server/index.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "db:migrate": "prisma migrate dev",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/static": "^10.1.4",
+    "@prisma/client": "^6.19.3",
+    "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/react-query": "^5.103.2",
+    "@vitejs/plugin-react": "^6.1.1",
+    "cookie": "^2.0.1",
+    "esbuild": "^0.28.2",
+    "fastify": "^5.12.5",
+    "prisma": "^6.19.3",
+    "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.6",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "5.9",
+    "vite": "^8.3.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "concurrently": "^10.0.5",
+    "vitest": "^3.2.7"
+  }
+}

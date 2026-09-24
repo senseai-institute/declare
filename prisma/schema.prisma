@@ -1,0 +1,180 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SessionStatus {
+  active
+  closed
+}
+
+enum ScoringMode {
+  high_wins
+  low_wins
+}
+
+enum GameStatus {
+  active
+  finished
+  abandoned
+}
+
+/// A recurring crew, e.g. "Beach House Crew".
+model Group {
+  id        String        @id @default(cuid())
+  name      String
+  joinCode  String        @unique @map("join_code")
+  createdAt DateTime      @default(now()) @map("created_at")
+  members   GroupMember[]
+  sessions  Session[]
+
+  @@map("groups")
+}
+
+/// A person. Identified on a device by an httpOnly cookie (no passwords in v1).
+/// Players without a device token are "guests" added by someone at the table.
+model Player {
+  id          String          @id @default(cuid())
+  displayName String          @map("display_name")
+  deviceToken String?         @unique @map("device_token")
+  email       String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  groups      GroupMember[]
+  sessions    SessionPlayer[]
+  games       GamePlayer[]
+
+  @@map("players")
+}
+
+model GroupMember {
+  groupId  String   @map("group_id")
+  playerId String   @map("player_id")
+  joinedAt DateTime @default(now()) @map("joined_at")
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  player   Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, playerId])
+  @@map("group_members")
+}
+
+/// A trip or game night. Optionally part of a group.
+model Session {
+  id          String          @id @default(cuid())
+  groupId     String?         @map("group_id")
+  name        String
+  joinCode    String          @unique @map("join_code")
+  status      SessionStatus   @default(active)
+  startedAt   DateTime        @default(now()) @map("started_at")
+  endedAt     DateTime?       @map("ended_at")
+  createdById String?         @map("created_by_id")
+  group       Group?          @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  players     SessionPlayer[]
+  games       Game[]
+
+  @@index([groupId])
+  @@map("sessions")
+}
+
+model SessionPlayer {
+  sessionId String   @map("session_id")
+  playerId  String   @map("player_id")
+  joinedAt  DateTime @default(now()) @map("joined_at")
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([sessionId, playerId])
+  @@map("session_players")
+}
+
+model Game {
+  id             String       @id @default(cuid())
+  sessionId      String       @map("session_id")
+  gameType       String       @map("game_type")
+  scoringMode    ScoringMode  @map("scoring_mode")
+  targetScore    Int?         @map("target_score")
+  status         GameStatus   @default(active)
+  deckEnabled    Boolean      @default(false) @map("deck_enabled")
+  winnerPlayerId String?      @map("winner_player_id")
+  /// true when the winner was picked by hand; edits then won't recompute it.
+  winnerOverride Boolean      @default(false) @map("winner_override")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  endedAt        DateTime?    @map("ended_at")
+  session        Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  players        GamePlayer[]
+  rounds         Round[]
+  deckState      DeckState?
+  audits         ScoreAudit[]
+
+  @@index([sessionId])
+  @@map("games")
+}
+
+model GamePlayer {
+  gameId   String @map("game_id")
+  playerId String @map("player_id")
+  seat     Int
+  game     Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([gameId, playerId])
+  @@map("game_players")
+}
+
+model Round {
+  id          String       @id @default(cuid())
+  gameId      String       @map("game_id")
+  roundNumber Int          @map("round_number")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  game        Game         @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  entries     ScoreEntry[]
+
+  @@unique([gameId, roundNumber])
+  @@map("rounds")
+}
+
+model ScoreEntry {
+  id                String    @id @default(cuid())
+  roundId           String    @map("round_id")
+  playerId          String    @map("player_id")
+  points            Int
+  enteredByPlayerId String    @map("entered_by_player_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  editedAt          DateTime? @map("edited_at")
+  round             Round     @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, playerId])
+  @@map("score_entries")
+}
+
+/// Draw pile, discard pile, hands and deck config for a virtual game.
+model DeckState {
+  id        String   @id @default(cuid())
+  gameId    String   @unique @map("game_id")
+  state     Json
+  version   Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@map("deck_states")
+}
+
+/// Every change to a submitted round score.
+model ScoreAudit {
+  id                String   @id @default(cuid())
+  gameId            String   @map("game_id")
+  roundId           String   @map("round_id")
+  roundNumber       Int      @map("round_number")
+  playerId          String   @map("player_id")
+  oldPoints         Int?     @map("old_points")
+  newPoints         Int      @map("new_points")
+  changedByPlayerId String   @map("changed_by_player_id")
+  changedAt         DateTime @default(now()) @map("changed_at")
+  game              Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId])
+  @@map("score_audits")
+}
