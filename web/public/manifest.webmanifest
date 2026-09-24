@@ -1,0 +1,9 @@
+{
+  "name": "Declare",
+  "short_name": "Declare",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#062a1f",
+  "theme_color": "#0b3d2e",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

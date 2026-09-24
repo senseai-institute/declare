@@ -1,0 +1,35 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-felt-950: #031c14;
+  --color-felt-900: #062a1f;
+  --color-felt-800: #0b3d2e;
+  --color-felt-700: #10513d;
+  --color-felt-600: #17694f;
+  --color-gold-300: #f5d989;
+  --color-gold-400: #eec55a;
+  --color-gold-500: #d9a92c;
+  --font-display: 'Georgia', 'Times New Roman', serif;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  @apply bg-felt-900 text-white antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+@utility safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
