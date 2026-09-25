@@ -135,7 +135,7 @@ function Scores({ g }: { g: GameDetail }) {
         }
       >
         {g.rounds.length === 0 ? (
-          <Empty>No rounds yet.</Empty>
+          <Empty>{isDeclare ? 'No hands yet.' : 'No rounds yet.'}</Empty>
         ) : (
           <>
             <div className="-mx-4 overflow-x-auto px-4">
