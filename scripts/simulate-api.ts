@@ -47,7 +47,7 @@ const value = (c: string) => {
   return r === 'A' ? 1 : ['J', 'Q', 'K'].includes(r) ? 10 : Number(r);
 };
 
-const stats = { games: 0, hands: 0, moves: 0, illegalRejected: 0, racesResolved: 0, autoMoves: 0, guestMoves: 0, privacyChecks: 0 };
+const stats = { games: 0, hands: 0, moves: 0, illegalRejected: 0, racesResolved: 0, lateMovesRefused: 0, autoMoves: 0, guestMoves: 0, privacyChecks: 0 };
 
 async function playOne(no: number) {
   const humans = 2 + rnd(3); // 2–4 phones
@@ -162,10 +162,17 @@ async function playOne(no: number) {
     // Sometimes fire the same move twice at once (double-tap / two tabs): exactly one may win.
     if (rnd(10) === 0) {
       const [a, b] = await Promise.all([phone.req('POST', `/games/${gameId}/move`, move), phone.req('POST', `/games/${gameId}/move`, move)]);
-      check([a.status, b.status].filter((x) => x === 200).length === 1, `race: ${a.status}/${b.status}`);
+      const wins = [a.status, b.status].filter((x) => x === 200).length;
+      check(wins === 1 || (sleepy && wins === 0), `race: ${a.status}/${b.status}`);
       stats.racesResolved++;
     } else {
-      await phone.ok('POST', `/games/${gameId}/move`, move);
+      const r = await phone.req('POST', `/games/${gameId}/move`, move);
+      if (r.status === 409 && sleepy) {
+        // Timed game: this phone was too slow, the computer already moved for it. Correctly refused.
+        stats.lateMovesRefused++;
+        continue;
+      }
+      check(r.status === 200, `move → ${r.status} ${JSON.stringify(r.data)}`);
     }
     stats.moves++;
   }
@@ -195,6 +202,7 @@ Declare full-stack simulation (${BASE})
   moves by phones       ${stats.moves}
   moves by computer     ${stats.guestMoves} for guests · ${stats.autoMoves} for timed-out players
   illegal moves         ${stats.illegalRejected} tried — all rejected
+  late moves refused     ${stats.lateMovesRefused} (phone too slow on a 1s timer; computer had already played)
   double-submit races   ${stats.racesResolved} — exactly one accepted each time
   privacy checks        ${stats.privacyChecks} — no phone saw another's cards
   result                ${failed ? 'FAILED: ' + (failed as Error).message : 'PASS'}
