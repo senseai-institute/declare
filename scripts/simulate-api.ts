@@ -93,23 +93,28 @@ async function playOne(no: number) {
         stats.privacyChecks++;
       }
     }
-    // A finished hand: verify its scoring independently.
+    // A finished hand: verify its scoring independently, and that the saved round matches.
     if (v.lastResult && v.lastResult.handNumber > seenHand) {
       const r = v.lastResult;
-      check(r.handNumber === seenHand + 1, `skipped a hand result (${seenHand} → ${r.handNumber})`);
       seenHand = r.handNumber;
       const pts = Object.fromEntries(Object.entries(r.hands).map(([id, h]) => [id, h.reduce((a, c) => a + value(c), 0)]));
       const lower = seats.filter((id) => id !== r.declarerId && pts[id] < pts[r.declarerId]).length;
+      const fresh = await host.ok<GameDetail>('GET', `/games/${gameId}`);
+      const round = fresh.rounds.find((x) => x.roundNumber === r.handNumber);
+      check(round, `hand ${r.handNumber} not saved as a round`);
+      check(round.declarerId === r.declarerId && round.declareSuccess === (lower === 0), 'round declarer/success wrong');
       for (const id of seats) {
         const want = id !== r.declarerId ? pts[id] : lower ? pts[id] + 20 * lower : 0;
         check(r.scores[id] === want, `hand ${r.handNumber}: ${id} scored ${r.scores[id]}, expected ${want}`);
-        totals[id] += r.scores[id];
+        check(round.scores[id]?.points === want, `saved round ${r.handNumber} wrong for ${id}`);
       }
       stats.hands++;
     }
     if (game.status !== 'active') {
       check(v.over, 'game finished but table not over');
       check(game.rounds.length === seenHand, `rounds ${game.rounds.length} ≠ hands ${seenHand}`);
+      check(game.rounds.every((r, i) => r.roundNumber === i + 1), 'round numbers not 1..n');
+      for (const r of game.rounds) for (const id of seats) totals[id] += r.scores[id]?.points ?? NaN;
       for (const p of game.players) check(p.total === totals[p.id], `total for ${p.displayName}: ${p.total} ≠ ${totals[p.id]}`);
       check(Object.values(totals).some((t) => t >= TARGET), 'ended before target');
       const best = Math.min(...Object.values(totals));
@@ -200,7 +205,7 @@ await Promise.all(
 console.log(`
 Declare full-stack simulation (${BASE})
   games completed       ${stats.games} / ${GAMES} in ${((Date.now() - t0) / 1000).toFixed(1)}s (${CONCURRENCY} at a time)
-  hands scored          ${stats.hands}
+  hands re-scored       ${stats.hands} independently (every hand also checked in final totals)
   moves by phones       ${stats.moves}
   moves by computer     ${stats.guestMoves} for guests · ${stats.autoMoves} for timed-out players
   illegal moves         ${stats.illegalRejected} tried — all rejected
