@@ -4,10 +4,16 @@ import type { DeckAction } from '../deck.js';
 import { notFound } from '../http.js';
 import { requireGameAccess } from '../services/access.js';
 import { deckViewFor, runDeckAction } from '../services/deck-service.js';
-import { editRound, endGame, gameAudit, gameDetail, submitRound } from '../services/games.js';
+import { runDeclareAction } from '../services/declare-service.js';
+import { editRound, endGame, gameAudit, gameDetail, submitDeclareRound, submitRound } from '../services/games.js';
 import { parse, z } from '../validate.js';
 
 const scoresSchema = z.object({ scores: z.record(z.string(), z.number().int()) });
+const roundSchema = z.union([
+  scoresSchema,
+  // Declare at the table: who declared + everyone's hand points; the server scores it.
+  z.object({ declare: z.object({ declarerId: z.string(), hands: z.record(z.string(), z.number().int().min(0).max(500)) }) }),
+]);
 
 export async function gameRoutes(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>('/api/games/:id', async (req) => {
@@ -19,8 +25,8 @@ export async function gameRoutes(app: FastifyInstance) {
   app.post<{ Params: { id: string } }>('/api/games/:id/rounds', async (req) => {
     const me = await requirePlayer(req);
     await requireGameAccess(req.params.id, me.id);
-    const { scores } = parse(scoresSchema, req.body);
-    return submitRound(req.params.id, me.id, scores);
+    const body = parse(roundSchema, req.body);
+    return 'declare' in body ? submitDeclareRound(req.params.id, me.id, body.declare) : submitRound(req.params.id, me.id, body.scores);
   });
 
   app.put<{ Params: { id: string; roundId: string } }>('/api/games/:id/rounds/:roundId', async (req) => {
@@ -51,6 +57,19 @@ export async function gameRoutes(app: FastifyInstance) {
     const view = await deckViewFor(req.params.id, me.id);
     if (!view) throw notFound('This game has no deck');
     return { view };
+  });
+
+  // Online Declare: POST { type: 'play', cards, take } or { type: 'declare' }.
+  app.post<{ Params: { id: string } }>('/api/games/:id/move', async (req) => {
+    const me = await requirePlayer(req);
+    const action = parse(
+      z.union([
+        z.object({ type: z.literal('declare'), version: z.number().int().optional() }),
+        z.object({ type: z.literal('play'), cards: z.array(z.string()).min(1).max(5), take: z.string(), version: z.number().int().optional() }),
+      ]),
+      req.body,
+    );
+    return { view: await runDeclareAction(req.params.id, me.id, action) };
   });
 
   const deckBody = z

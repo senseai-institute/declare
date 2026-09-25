@@ -5,7 +5,7 @@ import { uniqueJoinCode } from '../codes.js';
 import { prisma } from '../db.js';
 import { notify } from '../realtime.js';
 import { requireGroupMember } from '../services/access.js';
-import { groupGameTypes, groupLeaderboard } from '../services/stats.js';
+import { declareTotals, groupGameTypes, groupLeaderboard } from '../services/stats.js';
 import { nameSchema, parse, z } from '../validate.js';
 import { toGroupSummary, toPlayerRef, toSessionSummary } from './shape.js';
 
@@ -33,13 +33,18 @@ export async function groupRoutes(app: FastifyInstance) {
         },
       },
     });
-    const [leaderboard, gameTypes] = await Promise.all([groupLeaderboard(group.id), groupGameTypes(group.id)]);
+    const [leaderboard, gameTypes, totals] = await Promise.all([
+      groupLeaderboard(group.id),
+      groupGameTypes(group.id),
+      declareTotals({ session: { groupId: group.id } }, 'avg'),
+    ]);
     return {
       ...toGroupSummary({ ...group, sessions: group.sessions.filter((s) => s.status === 'active') }),
       createdAt: group.createdAt.toISOString(),
       members: group.members.map((m) => toPlayerRef(m.player)),
       sessions: group.sessions.map(toSessionSummary),
       leaderboard,
+      declareTotals: totals,
       gameTypes,
     };
   });

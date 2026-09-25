@@ -6,6 +6,7 @@ import { post } from '../api';
 import { GameList } from '../components/GameList';
 import { Invite } from '../components/Invite';
 import { Standings } from '../components/Standings';
+import { DeclareTotals } from '../components/DeclareTotals';
 import { Badge, Button, Card, ErrorNote, LinkButton, Page, Sheet, Spinner, TextInput } from '../components/ui';
 import { fmtDate, fmtDuration } from '../format';
 import { useSession } from '../hooks';
@@ -42,9 +43,16 @@ export function SessionPage() {
               <GameList games={s.games.filter((g) => g.status === 'active')} />
             </Card>
           )}
-          <Card title="Session standings">
-            <Standings rows={s.standings} />
-          </Card>
+          {s.declareTotals.length > 0 && (
+            <Card title="Declare — running totals">
+              <DeclareTotals rows={s.declareTotals} by="points" />
+            </Card>
+          )}
+          {s.standings.length > 0 && (
+            <Card title="Games won">
+              <Standings rows={s.standings} />
+            </Card>
+          )}
           <Card
             title={`Players (${s.players.length})`}
             action={
@@ -89,7 +97,16 @@ export function SessionPage() {
 function Summary({ s }: { s: SessionDetail }) {
   const finished = s.games.filter((g) => g.status === 'finished');
   const top = s.standings[0];
-  const champs = top && top.wins > 0 ? s.standings.filter((r) => r.wins === top.wins) : [];
+  // With Declare played, the champion is the lowest running total; otherwise most game wins.
+  const d = s.declareTotals;
+  const champs =
+    d.length > 0
+      ? d.filter((r) => r.points === d[0].points).map((r) => ({ displayName: r.displayName }))
+      : top && top.wins > 0
+        ? s.standings.filter((r) => r.wins === top.wins)
+        : [];
+  const champLine =
+    d.length > 0 ? `${d[0].points} points over ${d[0].hands} hands` : top ? `${top.wins} win${top.wins === 1 ? '' : 's'}${champs.length > 1 ? ' each' : ''}` : '';
   return (
     <>
       <Card className="text-center">
@@ -98,23 +115,27 @@ function Summary({ s }: { s: SessionDetail }) {
           <>
             <div className="mt-2 text-5xl">🏆</div>
             <div className="mt-1 font-display text-2xl font-bold text-gold-300">{champs.map((c) => c.displayName).join(' & ')}</div>
-            <div className="text-sm text-white/60">
-              {top.wins} win{top.wins === 1 ? '' : 's'}
-              {champs.length > 1 ? ' each' : ''}
-            </div>
+            <div className="text-sm text-white/60">{champLine}</div>
           </>
         ) : (
           <div className="mt-2 text-white/60">No games were finished.</div>
         )}
         <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
-          <Stat label="Games" value={finished.length} />
+          <Stat label={d.length ? 'Hands' : 'Games'} value={d.length ? Math.max(...d.map((r) => r.hands)) : finished.length} />
           <Stat label="Players" value={s.players.length} />
           <Stat label="Duration" value={fmtDuration(s.startedAt, s.endedAt)} />
         </div>
       </Card>
-      <Card title="Standings">
-        <Standings rows={s.standings} />
-      </Card>
+      {d.length > 0 && (
+        <Card title="Declare totals">
+          <DeclareTotals rows={d} by="points" />
+        </Card>
+      )}
+      {s.standings.length > 0 && (
+        <Card title="Games won">
+          <Standings rows={s.standings} />
+        </Card>
+      )}
       <Card title="Games">
         <GameList games={s.games} />
       </Card>

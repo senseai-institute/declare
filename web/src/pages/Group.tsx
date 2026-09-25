@@ -5,6 +5,7 @@ import type { StandingRow } from '../../../src/shared/api';
 import { api, post } from '../api';
 import { Invite } from '../components/Invite';
 import { Standings } from '../components/Standings';
+import { DeclareTotals } from '../components/DeclareTotals';
 import { Badge, Button, Card, Empty, ErrorNote, LinkButton, Page, Sheet, Spinner, TextInput } from '../components/ui';
 import { fmtDate } from '../format';
 import { useGroup } from '../hooks';
@@ -37,7 +38,13 @@ export function GroupPage() {
         </LinkButton>
       )}
 
-      <Card title="Leaderboard">
+      {g.declareTotals.length > 0 && (
+        <Card title="Declare — all time">
+          <DeclareTotals rows={g.declareTotals} by="avg" />
+        </Card>
+      )}
+
+      <Card title="Games won">
         {g.gameTypes.length > 1 && (
           <div className="-mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1">
             {['', ...g.gameTypes].map((t) => (

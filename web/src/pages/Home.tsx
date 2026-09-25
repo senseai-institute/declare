@@ -24,6 +24,19 @@ export function Home() {
         </Link>
       }
     >
+      {home.data?.yourTurn.map((t) => (
+        <Link key={t.gameId} to={`/game/${t.gameId}`} className="flex items-center justify-between rounded-2xl bg-gold-400 p-4 text-felt-950 active:bg-gold-500">
+          <div>
+            <div className="text-lg font-bold">Your turn!</div>
+            <div className="text-sm text-felt-900/80">
+              {t.gameType} · {t.sessionName}
+              {t.turnDeadline ? ` · auto-plays ${new Date(t.turnDeadline).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}` : ''}
+            </div>
+          </div>
+          <span className="text-2xl">›</span>
+        </Link>
+      ))}
+
       <Card title="Join with a code">
         <form
           className="flex gap-2"

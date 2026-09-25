@@ -29,6 +29,18 @@ export interface StandingRow {
   sessionTitles?: number;
 }
 
+/** Running Declare totals: every hand of every Declare game, finished or not. */
+export interface DeclareTotalsRow {
+  playerId: string;
+  displayName: string;
+  hands: number;
+  points: number;
+  avgPerHand: number;
+  declares: number;
+  declaresMade: number;
+  zeroHands: number;
+}
+
 export interface GameSummary {
   id: string;
   gameType: string;
@@ -36,6 +48,7 @@ export interface GameSummary {
   status: GameStatus;
   targetScore: number | null;
   deckEnabled: boolean;
+  rules: string | null;
   winnerPlayerId: string | null;
   roundCount: number;
   createdAt: string;
@@ -58,6 +71,7 @@ export interface SessionDetail extends SessionSummary {
   players: PlayerRef[];
   games: GameSummary[];
   standings: StandingRow[];
+  declareTotals: DeclareTotalsRow[];
   /** Group members who are not in this session yet (for quick add). */
   groupMembersNotHere: PlayerRef[];
 }
@@ -75,18 +89,29 @@ export interface GroupDetail extends GroupSummary {
   members: PlayerRef[];
   sessions: SessionSummary[];
   leaderboard: StandingRow[];
+  declareTotals: DeclareTotalsRow[];
   gameTypes: string[];
+}
+
+export interface YourTurn {
+  gameId: string;
+  sessionName: string;
+  gameType: string;
+  turnDeadline: number | null;
 }
 
 export interface HomeData {
   groups: GroupSummary[];
   sessions: SessionSummary[];
+  yourTurn: YourTurn[];
 }
 
 export interface RoundDetail {
   id: string;
   roundNumber: number;
   createdAt: string;
+  declarerId: string | null;
+  declareSuccess: boolean | null;
   scores: Record<string, { points: number; edited: boolean }>;
 }
 
@@ -98,6 +123,8 @@ export interface GameDetail {
   targetScore: number | null;
   status: GameStatus;
   deckEnabled: boolean;
+  /** 'declare' → built-in Declare rules. With deckEnabled it's played online. */
+  rules: string | null;
   winnerPlayerId: string | null;
   createdAt: string;
   endedAt: string | null;

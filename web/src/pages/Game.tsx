@@ -4,6 +4,8 @@ import { useParams } from 'react-router-dom';
 import type { AuditEntry, GameDetail, RoundDetail } from '../../../src/shared/api';
 import { api, post, put } from '../api';
 import { DeckPanel } from '../components/DeckPanel';
+import { DeclareRoundEntry } from '../components/DeclareRoundEntry';
+import { DeclareTable } from '../components/DeclareTable';
 import { ScoreGrid } from '../components/ScoreGrid';
 import { Badge, Button, Card, Empty, ErrorNote, Page, Sheet, Spinner } from '../components/ui';
 import { fmtTime } from '../format';
@@ -13,34 +15,46 @@ export function GamePage() {
   const { id = '' } = useParams();
   const me = useMe().data!;
   const q = useGame(id);
-  const [tab, setTab] = useState<'scores' | 'cards'>('scores');
+  const [tab, setTab] = useState<'scores' | 'cards' | null>(null);
 
   if (q.isLoading) return <Spinner />;
   if (q.error || !q.data) return <Page back="/" title="Game"><ErrorNote error={q.error} /></Page>;
   const g = q.data;
+  const online = g.rules === 'declare' && g.deckEnabled;
+  const current = tab ?? (online && g.status === 'active' ? 'cards' : 'scores');
 
   return (
     <Page
       title={g.gameType}
-      subtitle={`${g.session.name} · ${g.scoringMode === 'low_wins' ? 'low wins' : 'high wins'}${g.targetScore != null ? ` · to ${g.targetScore}` : ''}`}
+      subtitle={`${g.session.name} · ${
+        g.rules === 'declare' ? (online ? 'online' : 'at the table') : g.scoringMode === 'low_wins' ? 'low wins' : 'high wins'
+      }${g.targetScore != null ? ` · to ${g.targetScore}` : ''}`}
       back={`/s/${g.session.id}`}
-      right={g.status === 'active' ? <Badge tone="live">R{g.rounds.length + 1}</Badge> : <Badge>{g.status === 'finished' ? 'Final' : 'Ended'}</Badge>}
+      right={g.status === 'active' ? <Badge tone="live">{g.rules === 'declare' ? 'Hand ' : 'R'}{g.rounds.length + 1}</Badge> : <Badge>{g.status === 'finished' ? 'Final' : 'Ended'}</Badge>}
     >
-      <Totals g={g} />
+      {!(online && current === 'cards' && g.status === 'active') && <Totals g={g} />}
       {g.deckEnabled && (
         <div className="grid grid-cols-2 gap-1 rounded-xl bg-felt-950/50 p-1">
           {(['scores', 'cards'] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`min-h-11 rounded-lg font-semibold capitalize ${tab === t ? 'bg-felt-700 text-white' : 'text-white/60'}`}
+              className={`min-h-11 rounded-lg font-semibold capitalize ${current === t ? 'bg-felt-700 text-white' : 'text-white/60'}`}
             >
-              {t === 'scores' ? '📝 Scores' : '🃏 Cards'}
+              {t === 'scores' ? '📝 Scores' : online ? '🃏 Table' : '🃏 Cards'}
             </button>
           ))}
         </div>
       )}
-      {tab === 'cards' && g.deckEnabled ? <DeckPanel game={g} meId={me.id} /> : <Scores g={g} />}
+      {current === 'cards' && g.deckEnabled ? (
+        online ? (
+          <DeclareTable game={g} meId={me.id} />
+        ) : (
+          <DeckPanel game={g} meId={me.id} />
+        )
+      ) : (
+        <Scores g={g} />
+      )}
     </Page>
   );
 }
@@ -87,11 +101,23 @@ function Scores({ g }: { g: GameDetail }) {
   const [auditOpen, setAuditOpen] = useState(false);
   const canPlay = g.status === 'active' && g.session.status === 'active';
   const submit = useMutation({ mutationFn: (scores: Record<string, number>) => post(`/games/${g.id}/rounds`, { scores }) });
+  const submitDeclare = useMutation({
+    mutationFn: (declare: { declarerId: string; hands: Record<string, number> }) => post(`/games/${g.id}/rounds`, { declare }),
+  });
   const nextRound = g.rounds.length + 1;
+  const isDeclare = g.rules === 'declare';
 
   return (
     <>
-      {canPlay && (
+      {canPlay && isDeclare && !g.deckEnabled && (
+        <Card title={`Hand ${nextRound}`}>
+          <DeclareRoundEntry game={g} onSubmit={(b) => submitDeclare.mutateAsync(b)} busy={submitDeclare.isPending} />
+          <div className="mt-2">
+            <ErrorNote error={submitDeclare.error} />
+          </div>
+        </Card>
+      )}
+      {canPlay && !isDeclare && (
         <Card title={`Round ${nextRound}`}>
           <ScoreGrid key={nextRound} players={g.players} submitLabel={`Submit round ${nextRound}`} onSubmit={(s) => submit.mutateAsync(s)} busy={submit.isPending} />
           <div className="mt-2">
@@ -101,7 +127,7 @@ function Scores({ g }: { g: GameDetail }) {
       )}
 
       <Card
-        title="Rounds"
+        title={isDeclare ? "Hands" : "Rounds"}
         action={
           <button onClick={() => setAuditOpen(true)} className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">
             Edit log
@@ -134,6 +160,11 @@ function Scores({ g }: { g: GameDetail }) {
                         const s = r.scores[p.id];
                         return (
                           <td key={p.id} className={`px-2 py-2.5 text-right font-mono ${s && s.points < 0 ? 'text-red-300' : ''}`}>
+                            {r.declarerId === p.id && (
+                              <span className={r.declareSuccess ? 'text-emerald-300' : 'text-red-300'} title={r.declareSuccess ? 'Declared — made it' : 'Declared — caught'}>
+                                {r.declareSuccess ? '✓' : '✗'}{' '}
+                              </span>
+                            )}
                             {s ? s.points : '–'}
                             {s?.edited && <span className="text-gold-400" title="Edited">*</span>}
                           </td>
@@ -152,7 +183,9 @@ function Scores({ g }: { g: GameDetail }) {
                 </tbody>
               </table>
             </div>
-            <p className="mt-2 text-xs text-white/40">Tap a round to fix a score. * = edited.</p>
+            <p className="mt-2 text-xs text-white/40">
+              Tap a round to fix a score. * = edited{isDeclare ? ' · ✓/✗ = declared (made it / caught)' : ''}.
+            </p>
           </>
         )}
       </Card>

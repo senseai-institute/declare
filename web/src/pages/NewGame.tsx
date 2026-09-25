@@ -16,6 +16,7 @@ interface Preset {
 }
 
 const PRESETS: Preset[] = [
+  { name: 'Declare', mode: 'low_wins', target: null },
   { name: 'Hearts', mode: 'low_wins', target: 100 },
   { name: 'Spades', mode: 'high_wins', target: 500 },
   { name: 'Rummy', mode: 'high_wins', target: 500 },
@@ -40,6 +41,9 @@ export function NewGame() {
   const [deck, setDeck] = useState(false);
   const [decks, setDecks] = useState(1);
   const [jokers, setJokers] = useState(0);
+  const [where, setWhere] = useState<'online' | 'table'>('table');
+  const [autoHours, setAutoHours] = useState<number | null>(null);
+  const isDeclare = preset.name === 'Declare';
 
   const m = useMutation({
     mutationFn: () =>
@@ -48,8 +52,10 @@ export function NewGame() {
         scoringMode: mode,
         targetScore: target.trim() === '' ? null : Number(target),
         playerIds: seatList,
-        deckEnabled: deck,
+        deckEnabled: isDeclare ? where === 'online' : deck,
         deck: { decks, jokersPerDeck: jokers },
+        rules: isDeclare ? 'declare' : null,
+        turnSeconds: isDeclare && where === 'online' && autoHours ? autoHours * 3600 : null,
       }),
     onSuccess: ({ id: gameId }) => nav(`/game/${gameId}`, { replace: true }),
   });
@@ -89,7 +95,50 @@ export function NewGame() {
         )}
       </Card>
 
-      <Card title="Scoring">
+      {isDeclare && (
+        <Card title="Where are you playing?">
+          <div className="grid grid-cols-2 gap-2">
+            {(
+              [
+                ['table', '🪑 At the table', 'Real cards. Enter hands, app scores.'],
+                ['online', '📱 Online', 'Cards on everyone’s phone.'],
+              ] as const
+            ).map(([w, label, hint]) => (
+              <button
+                key={w}
+                onClick={() => setWhere(w)}
+                className={`rounded-xl p-3 text-left ${where === w ? 'bg-gold-400 text-felt-950' : 'bg-white/10'}`}
+              >
+                <div className="font-semibold">{label}</div>
+                <div className={`text-xs ${where === w ? 'text-felt-900/80' : 'text-white/50'}`}>{hint}</div>
+              </button>
+            ))}
+          </div>
+          {where === 'online' && (
+            <div className="mt-3">
+              <div className="mb-2 text-sm text-white/60">If someone doesn’t take their turn, the computer plays it after:</div>
+              <div className="grid grid-cols-4 gap-2">
+                {[null, 1, 8, 24].map((h) => (
+                  <button
+                    key={h ?? 'off'}
+                    onClick={() => setAutoHours(h)}
+                    className={`min-h-11 rounded-xl font-semibold ${autoHours === h ? 'bg-gold-400 text-felt-950' : 'bg-white/10'}`}
+                  >
+                    {h ? `${h}h` : 'Never'}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-white/50">Guests (players without a phone) are played by the computer. 2–8 players.</p>
+            </div>
+          )}
+          <p className="mt-3 text-xs text-white/50">
+            5 cards each. Throw a card, set or run (3+ in a row, any suits), then take from the deck or the last throw. Face cards 10, ace 1.
+            Declare when you think you’re lowest: right → 0, wrong → your points + 20 per player lower.
+          </p>
+        </Card>
+      )}
+
+      <Card title="Scoring" className={isDeclare ? 'hidden' : ''}>
         <div className="grid grid-cols-2 gap-2">
           {(['high_wins', 'low_wins'] as const).map((m) => (
             <button
@@ -137,7 +186,7 @@ export function NewGame() {
         <p className="mt-2 text-xs text-white/50">Tap to sit out or rejoin. Players are seated (and dealt to) in the order you add them.</p>
       </Card>
 
-      <Card title="Cards">
+      <Card title="Cards" className={isDeclare ? 'hidden' : ''}>
         <label className="flex min-h-12 items-center justify-between gap-3">
           <span>
             <span className="font-semibold">Virtual deck</span>
@@ -154,7 +203,18 @@ export function NewGame() {
       </Card>
 
       <ErrorNote error={m.error} />
-      <Button big onClick={() => m.mutate()} disabled={seatList.length === 0 || m.isPending}>
+      {isDeclare && (
+        <Card title="Ends when someone reaches (optional)">
+          <TextInput
+            className="font-mono"
+            inputMode="numeric"
+            value={target}
+            onChange={(e) => setTarget(e.target.value.replace(/[^\d]/g, ''))}
+            placeholder="No end — keep a running total"
+          />
+        </Card>
+      )}
+      <Button big onClick={() => m.mutate()} disabled={seatList.length === 0 || m.isPending || (isDeclare && where === 'online' && (seatList.length < 2 || seatList.length > 8))}>
         Start game
       </Button>
     </Page>

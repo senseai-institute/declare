@@ -4,6 +4,7 @@ import { currentPlayer, newDeviceToken, requirePlayer, setDeviceCookie } from '.
 import { prisma } from '../db.js';
 import { nameSchema, parse, z } from '../validate.js';
 import { toGroupSummary, toSessionSummary } from './shape.js';
+import { currentPlayer as turnOf, type DeclareState } from '../declare/engine.js';
 
 const toMe = (p: { id: string; displayName: string; email: string | null }): Me => ({
   id: p.id,
@@ -52,7 +53,7 @@ export async function meRoutes(app: FastifyInstance) {
 
   app.get('/api/home', async (req): Promise<HomeData> => {
     const me = await requirePlayer(req);
-    const [groups, sessions] = await Promise.all([
+    const [groups, sessions, online] = await Promise.all([
       prisma.group.findMany({
         where: { members: { some: { playerId: me.id } } },
         include: {
@@ -67,7 +68,16 @@ export async function meRoutes(app: FastifyInstance) {
         orderBy: [{ status: 'asc' }, { startedAt: 'desc' }],
         take: 20,
       }),
+      prisma.game.findMany({
+        where: { rules: 'declare', deckEnabled: true, status: 'active', session: { status: 'active' }, players: { some: { playerId: me.id } } },
+        include: { deckState: true, session: true },
+      }),
     ]);
-    return { groups: groups.map(toGroupSummary), sessions: sessions.map(toSessionSummary) };
+    const yourTurn = online.flatMap((g) => {
+      const st = g.deckState?.state as unknown as DeclareState | undefined;
+      if (!st || st.over || turnOf(st) !== me.id) return [];
+      return [{ gameId: g.id, sessionName: g.session.name, gameType: g.gameType, turnDeadline: st.turnDeadline }];
+    });
+    return { groups: groups.map(toGroupSummary), sessions: sessions.map(toSessionSummary), yourTurn };
   });
 }
