@@ -120,6 +120,8 @@ async function playOne(no: number) {
       break;
     }
 
+    // Views were fetched in parallel; if the computer moved in between, look again.
+    if (views.some((x) => x.version !== v.version)) continue;
     const turn = v.turnPlayerId!;
     const phone = phoneById.get(turn);
     if (!phone || turn === sleeper) {
