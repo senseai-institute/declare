@@ -157,6 +157,7 @@ async function playOne(no: number) {
       takeable: myView.lastThrow?.takeable ?? [],
       opponentCounts: seats.filter((id) => id !== turn).map((id) => myView.handCounts[id]),
       playerCount: seats.length,
+      turnsThisHand: myView.turnInHand,
     }) };
     // Sometimes fire the same move twice at once (double-tap / two tabs): exactly one may win.
     if (rnd(10) === 0) {

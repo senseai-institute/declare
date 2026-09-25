@@ -231,6 +231,7 @@ export interface DeclareView {
   kind: 'declare';
   players: string[];
   handNumber: number;
+  turnInHand: number;
   turnPlayerId: string | null;
   turnDeadline: number | null;
   turnSeconds: number | null;
@@ -250,6 +251,7 @@ export function declareViewFor(s: DeclareState, playerId: string | null, version
     kind: 'declare',
     players: s.players,
     handNumber: s.handNumber,
+    turnInHand: s.turnInHand,
     turnPlayerId: s.over ? null : currentPlayer(s),
     turnDeadline: s.turnDeadline,
     turnSeconds: s.turnSeconds,
