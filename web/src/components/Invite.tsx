@@ -26,6 +26,14 @@ export function Invite({ code, label }: { code: string; label: string }) {
     setTimeout(() => setCopied(false), 1500);
   }
 
+  if (import.meta.env.VITE_DEMO) {
+    return (
+      <p className="text-sm text-white/60">
+        In the real app, people join with code <span className="font-mono font-bold text-gold-300">{code}</span> or a QR code on
+        their own phone. This demo runs only in your browser, so everyone else is played by the computer.
+      </p>
+    );
+  }
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">

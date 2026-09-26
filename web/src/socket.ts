@@ -12,7 +12,11 @@ function queryKeysFor(room: string): unknown[][] {
   return [[kind, id]];
 }
 
+// The demo build has no server: a stub that never connects, so callers fall back to the API.
+const offline = { connected: false, on() {}, emit() {}, disconnect() {}, connect() {} } as unknown as Socket;
+
 export function getSocket(qc: QueryClient): Socket {
+  if (import.meta.env.VITE_DEMO) return offline;
   if (socket) return socket;
   socket = io({ transports: ['websocket', 'polling'] });
   socket.on('connect', () => {
@@ -32,7 +36,7 @@ export function getSocket(qc: QueryClient): Socket {
 
 /** Reconnect so the handshake picks up a newly set device cookie. */
 export function resetSocket() {
-  if (socket) {
+  if (socket && !import.meta.env.VITE_DEMO) {
     socket.disconnect();
     socket.connect();
   }

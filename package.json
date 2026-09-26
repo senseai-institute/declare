@@ -19,7 +19,8 @@
     "db:migrate": "prisma migrate dev",
     "postinstall": "prisma generate",
     "simulate": "tsx scripts/simulate.ts",
-    "simulate:api": "tsx scripts/simulate-api.ts"
+    "simulate:api": "tsx scripts/simulate-api.ts",
+    "build:demo": "vite build -c vite.demo.config.ts && node scripts/build-demo-page.mjs"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",

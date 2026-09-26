@@ -8,6 +8,10 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+  if (import.meta.env.VITE_DEMO) {
+    const { handle } = await import('./demo/backend');
+    return (await handle(init.method ?? (init.body !== undefined ? 'POST' : 'GET'), path, init.body as Record<string, unknown>)) as T;
+  }
   const res = await fetch(`/api${path}`, {
     method: init.method ?? (init.body !== undefined ? 'POST' : 'GET'),
     headers: init.body !== undefined ? { 'content-type': 'application/json' } : undefined,
