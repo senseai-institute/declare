@@ -5,6 +5,8 @@ import { badRequest, conflict, notFound } from '../http.js';
 import { withLock } from '../lock.js';
 import { notify } from '../realtime.js';
 import { computeTotals, leader, placesFor, targetReached } from '../scoring.js';
+import { scoreDeclare } from '../../shared/declare.js';
+import type { DeclareState } from '../declare/engine.js';
 
 const MAX_POINTS = 1_000_000;
 
@@ -32,6 +34,7 @@ export function toSummary(game: GameWithAll | Omit<GameWithAll, 'session'>): Gam
     status: game.status,
     targetScore: game.targetScore,
     deckEnabled: game.deckEnabled,
+    rules: game.rules,
     winnerPlayerId: game.winnerPlayerId,
     roundCount: game.rounds.length,
     createdAt: game.createdAt.toISOString(),
@@ -74,6 +77,7 @@ export async function gameDetail(gameId: string): Promise<GameDetail> {
     targetScore: game.targetScore,
     status: game.status,
     deckEnabled: game.deckEnabled,
+    rules: game.rules,
     winnerPlayerId: game.winnerPlayerId,
     createdAt: game.createdAt.toISOString(),
     endedAt: game.endedAt?.toISOString() ?? null,
@@ -89,6 +93,8 @@ export async function gameDetail(gameId: string): Promise<GameDetail> {
       id: r.id,
       roundNumber: r.roundNumber,
       createdAt: r.createdAt.toISOString(),
+      declarerId: r.declarerId,
+      declareSuccess: r.declareSuccess,
       scores: Object.fromEntries(r.entries.map((e) => [e.playerId, { points: e.points, edited: e.editedAt != null }])),
     })),
   };
@@ -143,6 +149,39 @@ export async function submitRound(gameId: string, playerId: string, scores: Reco
     const ended = await maybeAutoEnd(gameId);
     notifyGame(game);
     return { roundNumber, ended };
+  });
+}
+
+/** Declare played at the table: score it on the server from who declared and everyone's hand points. */
+export async function submitDeclareRound(
+  gameId: string,
+  playerId: string,
+  input: { declarerId: string; hands: Record<string, number> },
+) {
+  return withLock(`game:${gameId}`, async () => {
+    const game = await loadGame(gameId);
+    if (game.status !== 'active') throw conflict('This game is over');
+    if (game.session.status !== 'active') throw conflict('This session is closed');
+    const ids = game.players.map((p) => p.playerId);
+    if (!ids.includes(input.declarerId)) throw badRequest('Pick who declared');
+    const hands = Object.fromEntries(ids.map((id) => [id, input.hands[id] ?? 0]));
+    for (const v of Object.values(hands)) if (!Number.isInteger(v) || v < 0 || v > 500) throw badRequest('Hand points must be 0–500');
+    const outcome = scoreDeclare(input.declarerId, hands);
+    const roundNumber = (game.rounds.at(-1)?.roundNumber ?? 0) + 1;
+    await prisma.round.create({
+      data: {
+        gameId,
+        roundNumber,
+        declarerId: outcome.declarerId,
+        declareSuccess: outcome.success,
+        entries: {
+          create: Object.entries(outcome.scores).map(([pid, p]) => ({ playerId: pid, points: p, enteredByPlayerId: playerId })),
+        },
+      },
+    });
+    const ended = await maybeAutoEnd(gameId);
+    notifyGame(game);
+    return { roundNumber, ended, outcome };
   });
 }
 
@@ -211,6 +250,13 @@ async function finishLoadedGame(game: GameWithAll, winnerPlayerId?: string | nul
   }
   const manual = winnerPlayerId !== undefined;
   const winner = manual ? winnerPlayerId : leader(standingsOf(game).totals, game.scoringMode);
+  if (game.rules === 'declare') {
+    const row = await prisma.deckState.findUnique({ where: { gameId: game.id } });
+    if (row) {
+      const state = { ...(row.state as unknown as DeclareState), over: true, turnDeadline: null };
+      await prisma.deckState.update({ where: { gameId: game.id }, data: { state: state as unknown as Prisma.InputJsonValue, version: { increment: 1 } } });
+    }
+  }
   await prisma.game.update({
     where: { id: game.id },
     data: {

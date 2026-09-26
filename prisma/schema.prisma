@@ -98,6 +98,8 @@ model Game {
   targetScore    Int?         @map("target_score")
   status         GameStatus   @default(active)
   deckEnabled    Boolean      @default(false) @map("deck_enabled")
+  /// "declare" = the built-in Declare rules (online turns, or a scoring helper at the table).
+  rules          String?
   winnerPlayerId String?      @map("winner_player_id")
   /// true when the winner was picked by hand; edits then won't recompute it.
   winnerOverride Boolean      @default(false) @map("winner_override")
@@ -125,12 +127,15 @@ model GamePlayer {
 }
 
 model Round {
-  id          String       @id @default(cuid())
-  gameId      String       @map("game_id")
-  roundNumber Int          @map("round_number")
-  createdAt   DateTime     @default(now()) @map("created_at")
-  game        Game         @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  entries     ScoreEntry[]
+  id             String       @id @default(cuid())
+  gameId         String       @map("game_id")
+  roundNumber    Int          @map("round_number")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  /// Declare games: who declared this hand and whether they had the lowest.
+  declarerId     String?      @map("declarer_id")
+  declareSuccess Boolean?     @map("declare_success")
+  game           Game         @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  entries        ScoreEntry[]
 
   @@unique([gameId, roundNumber])
   @@map("rounds")

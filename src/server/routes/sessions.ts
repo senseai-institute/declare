@@ -9,7 +9,8 @@ import { badRequest, conflict } from '../http.js';
 import { notify } from '../realtime.js';
 import { requireGroupMember, requireSessionMember } from '../services/access.js';
 import { finishActiveGames, loadSessionGames, toSummary } from '../services/games.js';
-import { sessionStandings } from '../services/stats.js';
+import { declareTotals, sessionStandings } from '../services/stats.js';
+import { createDeclareState, scheduleAuto } from '../services/declare-service.js';
 import { nameSchema, parse, z } from '../validate.js';
 import { toPlayerRef, toSessionSummary } from './shape.js';
 
@@ -67,6 +68,7 @@ export async function sessionRoutes(app: FastifyInstance) {
       players: session.players.map((p) => toPlayerRef(p.player)),
       games: games.map(toSummary).reverse(),
       standings: sessionStandings(games),
+      declareTotals: await declareTotals({ sessionId: session.id }, 'points'),
       groupMembersNotHere: (session.group?.members ?? [])
         .filter((m) => !here.has(m.playerId))
         .map((m) => toPlayerRef(m.player)),
@@ -129,6 +131,9 @@ export async function sessionRoutes(app: FastifyInstance) {
         targetScore: z.number().int().min(-1_000_000).max(1_000_000).nullable().optional(),
         playerIds: z.array(z.string()).min(1, 'Pick at least one player').max(20),
         deckEnabled: z.boolean().default(false),
+        rules: z.literal('declare').nullable().optional(),
+        /** Online Declare: computer plays your turn after this long (null = never). */
+        turnSeconds: z.number().int().min(Number(process.env.DECLARE_MIN_TURN_SECONDS ?? 60)).max(7 * 24 * 3600).nullable().optional(),
         deck: z.object({ decks: z.number().int(), jokersPerDeck: z.number().int() }).partial().optional(),
       }),
       req.body,
@@ -140,7 +145,9 @@ export async function sessionRoutes(app: FastifyInstance) {
     if (members !== playerIds.length) throw badRequest('Everyone in the game must be in the session');
 
     let deckState: Prisma.InputJsonValue | undefined;
-    if (body.deckEnabled) {
+    if (body.rules === 'declare' && body.deckEnabled) {
+      deckState = createDeclareState(playerIds, body.turnSeconds ?? null);
+    } else if (body.deckEnabled) {
       try {
         deckState = createDeckState(normalizeConfig(body.deck), playerIds) as unknown as Prisma.InputJsonValue;
       } catch (err) {
@@ -156,11 +163,13 @@ export async function sessionRoutes(app: FastifyInstance) {
         scoringMode: body.scoringMode,
         targetScore: body.targetScore ?? null,
         deckEnabled: body.deckEnabled,
+        rules: body.rules ?? null,
         players: { create: playerIds.map((playerId, seat) => ({ playerId, seat })) },
         ...(deckState ? { deckState: { create: { state: deckState } } } : {}),
       },
     });
     notify(`session:${session.id}`);
+    if (game.rules === 'declare' && game.deckEnabled) void scheduleAuto(game.id);
     return { id: game.id };
   });
 }

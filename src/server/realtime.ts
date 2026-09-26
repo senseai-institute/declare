@@ -5,6 +5,7 @@ import { prisma } from './db.js';
 import { HttpError } from './http.js';
 import { deckViewFor, runDeckAction } from './services/deck-service.js';
 import type { DeckAction } from './deck.js';
+import { runDeclareAction, type DeclareAction } from './services/declare-service.js';
 
 let io: Server | null = null;
 
@@ -66,6 +67,15 @@ export function attachRealtime(server: HttpServer) {
 
     socket.on('unsubscribe', (room: string) => {
       if (typeof room === 'string') void socket.leave(room);
+    });
+
+    socket.on('declare:action', async (payload: { gameId: string; action: DeclareAction }, ack?: Ack) => {
+      try {
+        if (!data.playerId) throw new HttpError(401, 'Not signed in');
+        ack?.({ ok: true, data: await runDeclareAction(payload?.gameId, data.playerId, payload?.action) });
+      } catch (err) {
+        ack?.({ ok: false, error: (err as Error).message });
+      }
     });
 
     socket.on('deck:action', async (payload: { gameId: string; action: DeckAction }, ack?: Ack) => {

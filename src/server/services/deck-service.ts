@@ -6,12 +6,16 @@ import { badRequest, conflict, forbidden, HttpError } from '../http.js';
 import { withLock } from '../lock.js';
 import { broadcastDeck } from '../realtime.js';
 import { requireGameAccess } from './access.js';
+import { toDeclareView } from './declare-service.js';
+import type { DeclareView } from '../declare/engine.js';
 
 const ACTIONS = new Set(['shuffle', 'deal', 'draw', 'draw_discard', 'discard', 'reshuffle', 'reset']);
 
-export async function deckViewFor(gameId: string, playerId: string | null): Promise<DeckView | null> {
+/** The caller's private view of a game's cards: the free-form deck, or an online Declare table. */
+export async function deckViewFor(gameId: string, playerId: string | null): Promise<DeckView | DeclareView | null> {
   const row = await prisma.deckState.findUnique({ where: { gameId } });
   if (!row) return null;
+  if ((row.state as { kind?: string }).kind === 'declare') return toDeclareView(row.state, playerId, row.version);
   return viewFor(row.state as unknown as DeckData, playerId, row.version);
 }
 
@@ -19,6 +23,7 @@ export async function runDeckAction(gameId: string, playerId: string, action: De
   if (typeof gameId !== 'string' || !action || !ACTIONS.has(action.type)) throw badRequest('Unknown deck action');
   const game = await requireGameAccess(gameId, playerId);
   if (!game.deckEnabled) throw badRequest('This game is scoring-only (no deck)');
+  if (game.rules === 'declare') throw badRequest('Use Declare moves for this game');
   if (game.status !== 'active') throw conflict('Game is over');
   if (game.session.status !== 'active') throw conflict('Session is closed');
 

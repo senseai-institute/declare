@@ -10,6 +10,36 @@ long-term per group. Mobile-first — built for phones at the table.
 - Fastify + Socket.IO (live updates), PostgreSQL via Prisma
 - React + Vite + Tailwind, served as static files by Fastify in production
 
+## Declare (the family game)
+
+5 cards each. On your turn, **throw** a single card, a set (2+ of the same
+rank) or a run (3+ consecutive ranks, any suits, ace low), then **take one**:
+from the deck or from the previous player's throw (any card of a set, either
+end of a run). Ace = 1, 2–10 face value, J/Q/K = 10.
+
+Instead of throwing, you can **declare** when you think you're lowest:
+
+- nobody lower → you score 0, everyone else adds their hand
+- anyone lower → you add your hand + 20 per player lower, everyone else adds their hand
+
+Play it two ways:
+
+- **At the table** — real cards; tap who declared and type each hand's points,
+  the app scores the round.
+- **Online** — cards on everyone's phone, turns enforced by the server. Guests
+  (players without a phone) are played by the computer. Optionally the computer
+  takes your turn if you don't move within 1/8/24 hours, so a game can run for days.
+
+Running totals are kept per session (a trip) and per group (all time, ranked by
+points per hand).
+
+### QA by simulation
+
+```bash
+npm run simulate -- 10000        # 10,000 full games through the rules engine
+npm run simulate:api -- 200 8    # games through the real API + database (see script header)
+```
+
 ## Features
 
 - **Groups** — recurring crews with a 6-character join code, share link and QR.

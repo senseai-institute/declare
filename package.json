@@ -2,7 +2,7 @@
   "name": "declare",
   "version": "1.0.0",
   "private": true,
-  "description": "Declare — a card game companion: shuffling, dealing, sessions and score tracking.",
+  "description": "Declare \u2014 a card game companion: shuffling, dealing, sessions and score tracking.",
   "type": "module",
   "engines": {
     "node": ">=20.19"
@@ -17,7 +17,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "db:migrate": "prisma migrate dev",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "simulate": "tsx scripts/simulate.ts",
+    "simulate:api": "tsx scripts/simulate-api.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",

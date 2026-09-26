@@ -7,6 +7,7 @@ import Fastify from 'fastify';
 import { prisma } from './db.js';
 import { HttpError } from './http.js';
 import { attachRealtime } from './realtime.js';
+import { resumeAutoPlay } from './services/declare-service.js';
 import { gameRoutes } from './routes/games.js';
 import { groupRoutes } from './routes/groups.js';
 import { joinRoutes } from './routes/join.js';
@@ -68,6 +69,7 @@ const app = await buildApp();
 attachRealtime(app.server);
 const port = Number(process.env.PORT ?? 3000);
 await app.listen({ port, host: '0.0.0.0' });
+await resumeAutoPlay();
 
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sig, async () => {
