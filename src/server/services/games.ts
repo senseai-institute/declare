@@ -6,6 +6,7 @@ import { withLock } from '../lock.js';
 import { notify } from '../realtime.js';
 import { computeTotals, leader, placesFor, targetReached } from '../scoring.js';
 import { scoreDeclare } from '../../shared/declare.js';
+import { scoreUnoRound } from '../../shared/uno.js';
 import type { DeclareState } from '../declare/engine.js';
 
 const MAX_POINTS = 1_000_000;
@@ -152,27 +153,37 @@ export async function submitRound(gameId: string, playerId: string, scores: Reco
   });
 }
 
-/** Declare played at the table: score it on the server from who declared and everyone's hand points. */
-export async function submitDeclareRound(
+/**
+ * A hand played with real cards, scored on the server from who ended it and
+ * the points left in each hand. Declare: who declared. UNO: who went out.
+ * `declarerId` on the round records that player for both.
+ */
+export async function submitHandRound(
   gameId: string,
   playerId: string,
-  input: { declarerId: string; hands: Record<string, number> },
+  kind: 'declare' | 'uno',
+  input: { playerId: string; hands: Record<string, number> },
 ) {
   return withLock(`game:${gameId}`, async () => {
     const game = await loadGame(gameId);
     if (game.status !== 'active') throw conflict('This game is over');
     if (game.session.status !== 'active') throw conflict('This session is closed');
+    if ((game.rules ?? null) !== kind) throw badRequest(`This isn’t a ${kind === 'uno' ? 'UNO' : 'Declare'} game`);
     const ids = game.players.map((p) => p.playerId);
-    if (!ids.includes(input.declarerId)) throw badRequest('Pick who declared');
+    if (!ids.includes(input.playerId)) throw badRequest(kind === 'uno' ? 'Pick who went out' : 'Pick who declared');
+    const max = kind === 'uno' ? 2000 : 500;
     const hands = Object.fromEntries(ids.map((id) => [id, input.hands[id] ?? 0]));
-    for (const v of Object.values(hands)) if (!Number.isInteger(v) || v < 0 || v > 500) throw badRequest('Hand points must be 0–500');
-    const outcome = scoreDeclare(input.declarerId, hands);
+    for (const v of Object.values(hands)) if (!Number.isInteger(v) || v < 0 || v > max) throw badRequest(`Hand points must be 0–${max}`);
+    const outcome =
+      kind === 'uno'
+        ? { ...scoreUnoRound(input.playerId, hands), success: true }
+        : scoreDeclare(input.playerId, hands);
     const roundNumber = (game.rounds.at(-1)?.roundNumber ?? 0) + 1;
     await prisma.round.create({
       data: {
         gameId,
         roundNumber,
-        declarerId: outcome.declarerId,
+        declarerId: input.playerId,
         declareSuccess: outcome.success,
         entries: {
           create: Object.entries(outcome.scores).map(([pid, p]) => ({ playerId: pid, points: p, enteredByPlayerId: playerId })),

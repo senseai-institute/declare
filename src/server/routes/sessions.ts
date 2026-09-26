@@ -131,7 +131,7 @@ export async function sessionRoutes(app: FastifyInstance) {
         targetScore: z.number().int().min(-1_000_000).max(1_000_000).nullable().optional(),
         playerIds: z.array(z.string()).min(1, 'Pick at least one player').max(20),
         deckEnabled: z.boolean().default(false),
-        rules: z.literal('declare').nullable().optional(),
+        rules: z.enum(['declare', 'uno']).nullable().optional(),
         /** Online Declare: computer plays your turn after this long (null = never). */
         turnSeconds: z.number().int().min(Number(process.env.DECLARE_MIN_TURN_SECONDS ?? 60)).max(7 * 24 * 3600).nullable().optional(),
         deck: z.object({ decks: z.number().int(), jokersPerDeck: z.number().int() }).partial().optional(),
@@ -144,6 +144,7 @@ export async function sessionRoutes(app: FastifyInstance) {
     });
     if (members !== playerIds.length) throw badRequest('Everyone in the game must be in the session');
 
+    if (body.rules === 'uno' && body.deckEnabled) throw badRequest('UNO is scored at the table (no virtual deck yet)');
     let deckState: Prisma.InputJsonValue | undefined;
     if (body.rules === 'declare' && body.deckEnabled) {
       deckState = createDeclareState(playerIds, body.turnSeconds ?? null);

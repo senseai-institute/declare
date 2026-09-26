@@ -33,6 +33,12 @@ Play it two ways:
 Running totals are kept per session (a trip) and per group (all time, ranked by
 points per hand).
 
+## UNO
+
+Play with a real UNO deck; the app keeps score. When someone goes out, tap
+their name and enter the points left in each other hand (+20 / +50 buttons for
+action and wild cards). They score the total; first to 500 wins (adjustable).
+
 ### QA by simulation
 
 ```bash

@@ -5,7 +5,7 @@ import { notFound } from '../http.js';
 import { requireGameAccess } from '../services/access.js';
 import { deckViewFor, runDeckAction } from '../services/deck-service.js';
 import { runDeclareAction } from '../services/declare-service.js';
-import { editRound, endGame, gameAudit, gameDetail, submitDeclareRound, submitRound } from '../services/games.js';
+import { editRound, endGame, gameAudit, gameDetail, submitHandRound, submitRound } from '../services/games.js';
 import { parse, z } from '../validate.js';
 
 const scoresSchema = z.object({ scores: z.record(z.string(), z.number().int()) });
@@ -13,6 +13,8 @@ const roundSchema = z.union([
   scoresSchema,
   // Declare at the table: who declared + everyone's hand points; the server scores it.
   z.object({ declare: z.object({ declarerId: z.string(), hands: z.record(z.string(), z.number().int().min(0).max(500)) }) }),
+  // UNO at the table: who went out + points left in everyone else's hand.
+  z.object({ uno: z.object({ winnerId: z.string(), hands: z.record(z.string(), z.number().int().min(0).max(2000)) }) }),
 ]);
 
 export async function gameRoutes(app: FastifyInstance) {
@@ -26,7 +28,9 @@ export async function gameRoutes(app: FastifyInstance) {
     const me = await requirePlayer(req);
     await requireGameAccess(req.params.id, me.id);
     const body = parse(roundSchema, req.body);
-    return 'declare' in body ? submitDeclareRound(req.params.id, me.id, body.declare) : submitRound(req.params.id, me.id, body.scores);
+    if ('declare' in body) return submitHandRound(req.params.id, me.id, 'declare', { playerId: body.declare.declarerId, hands: body.declare.hands });
+    if ('uno' in body) return submitHandRound(req.params.id, me.id, 'uno', { playerId: body.uno.winnerId, hands: body.uno.hands });
+    return submitRound(req.params.id, me.id, body.scores);
   });
 
   app.put<{ Params: { id: string; roundId: string } }>('/api/games/:id/rounds/:roundId', async (req) => {
