@@ -6,6 +6,7 @@ import { api, post, put } from '../api';
 import { DeckPanel } from '../components/DeckPanel';
 import { DeclareRoundEntry } from '../components/DeclareRoundEntry';
 import { DeclareTable } from '../components/DeclareTable';
+import { UnoRoundEntry } from '../components/UnoRoundEntry';
 import { ScoreGrid } from '../components/ScoreGrid';
 import { Badge, Button, Card, Empty, ErrorNote, Page, Sheet, Spinner } from '../components/ui';
 import { fmtTime } from '../format';
@@ -104,8 +105,12 @@ function Scores({ g }: { g: GameDetail }) {
   const submitDeclare = useMutation({
     mutationFn: (declare: { declarerId: string; hands: Record<string, number> }) => post(`/games/${g.id}/rounds`, { declare }),
   });
+  const submitUno = useMutation({
+    mutationFn: (uno: { winnerId: string; hands: Record<string, number> }) => post(`/games/${g.id}/rounds`, { uno }),
+  });
   const nextRound = g.rounds.length + 1;
   const isDeclare = g.rules === 'declare';
+  const isUno = g.rules === 'uno';
 
   return (
     <>
@@ -117,7 +122,15 @@ function Scores({ g }: { g: GameDetail }) {
           </div>
         </Card>
       )}
-      {canPlay && !isDeclare && (
+      {canPlay && isUno && (
+        <Card title={`Round ${nextRound}`}>
+          <UnoRoundEntry game={g} onSubmit={(b) => submitUno.mutateAsync(b)} busy={submitUno.isPending} />
+          <div className="mt-2">
+            <ErrorNote error={submitUno.error} />
+          </div>
+        </Card>
+      )}
+      {canPlay && !isDeclare && !isUno && (
         <Card title={`Round ${nextRound}`}>
           <ScoreGrid key={nextRound} players={g.players} submitLabel={`Submit round ${nextRound}`} onSubmit={(s) => submit.mutateAsync(s)} busy={submit.isPending} />
           <div className="mt-2">
@@ -160,7 +173,12 @@ function Scores({ g }: { g: GameDetail }) {
                         const s = r.scores[p.id];
                         return (
                           <td key={p.id} className={`px-2 py-2.5 text-right font-mono ${s && s.points < 0 ? 'text-red-300' : ''}`}>
-                            {r.declarerId === p.id && (
+                            {r.declarerId === p.id && isUno && (
+                              <span className="text-gold-300" title="Went out">
+                                ★{' '}
+                              </span>
+                            )}
+                            {r.declarerId === p.id && isDeclare && (
                               <span className={r.declareSuccess ? 'text-emerald-300' : 'text-red-300'} title={r.declareSuccess ? 'Declared — made it' : 'Declared — caught'}>
                                 {r.declareSuccess ? '✓' : '✗'}{' '}
                               </span>
@@ -184,7 +202,7 @@ function Scores({ g }: { g: GameDetail }) {
               </table>
             </div>
             <p className="mt-2 text-xs text-white/40">
-              Tap a round to fix a score. * = edited{isDeclare ? ' · ✓/✗ = declared (made it / caught)' : ''}.
+              Tap a round to fix a score. * = edited{isDeclare ? ' · ✓/✗ = declared (made it / caught)' : isUno ? ' · ★ = went out' : ''}.
             </p>
           </>
         )}

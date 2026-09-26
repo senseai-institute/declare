@@ -26,7 +26,7 @@ export function GameList({ games }: { games: GameSummary[] }) {
                 {g.players.map((p) => `${p.displayName} ${p.total}`).join(' · ')}
               </div>
               <div className="mt-0.5 text-xs text-white/40">
-                {fmtTime(g.createdAt)} · {g.rules === 'declare' ? `${g.roundCount} hands` : g.scoringMode === 'low_wins' ? 'Low wins' : 'High wins'}
+                {fmtTime(g.createdAt)} · {g.rules === 'declare' ? `${g.roundCount} hands` : g.rules === 'uno' ? `${g.roundCount} rounds` : g.scoringMode === 'low_wins' ? 'Low wins' : 'High wins'}
                 {g.targetScore != null && ` · to ${g.targetScore}`}
                 {g.rules === 'declare' ? (g.deckEnabled ? ' · 📱 online' : ' · 🪑 at the table') : g.deckEnabled ? ' · 🃏 deck' : ''}
               </div>

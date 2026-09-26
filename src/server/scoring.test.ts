@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { scoreUnoRound } from '../shared/uno.js';
 import { computeStandings, computeTotals, leader, placesFor, targetReached } from './scoring.js';
 
 describe('scoring', () => {
@@ -38,5 +39,16 @@ describe('scoring', () => {
     );
     expect(rows[0]).toMatchObject({ playerId: 'a', wins: 2, played: 3, sessions: 2, sessionTitles: 1 });
     expect(rows[1]).toMatchObject({ playerId: 'b', wins: 1, sessionTitles: 1, avgPlace: 1.67 });
+  });
+});
+
+describe('UNO scoring', () => {
+  it('gives the player who went out everyone else’s card points', () => {
+    const r = scoreUnoRound('a', { a: 999, b: 27, c: 70, d: 0 });
+    expect(r.scores).toEqual({ a: 97, b: 0, c: 0, d: 0 });
+  });
+  it('rejects bad input', () => {
+    expect(() => scoreUnoRound('x', { a: 1 })).toThrow();
+    expect(() => scoreUnoRound('a', { a: 0, b: -3 })).toThrow();
   });
 });

@@ -17,6 +17,7 @@ interface Preset {
 
 const PRESETS: Preset[] = [
   { name: 'Declare', mode: 'low_wins', target: null },
+  { name: 'UNO', mode: 'high_wins', target: 500 },
   { name: 'Hearts', mode: 'low_wins', target: 100 },
   { name: 'Spades', mode: 'high_wins', target: 500 },
   { name: 'Rummy', mode: 'high_wins', target: 500 },
@@ -44,6 +45,8 @@ export function NewGame() {
   const [where, setWhere] = useState<'online' | 'table'>('table');
   const [autoHours, setAutoHours] = useState<number | null>(null);
   const isDeclare = preset.name === 'Declare';
+  const isUno = preset.name === 'UNO';
+  const ruled = isDeclare || isUno;
 
   const m = useMutation({
     mutationFn: () =>
@@ -52,9 +55,9 @@ export function NewGame() {
         scoringMode: mode,
         targetScore: target.trim() === '' ? null : Number(target),
         playerIds: seatList,
-        deckEnabled: isDeclare ? where === 'online' : deck,
+        deckEnabled: isDeclare ? where === 'online' : isUno ? false : deck,
         deck: { decks, jokersPerDeck: jokers },
-        rules: isDeclare ? 'declare' : null,
+        rules: isDeclare ? 'declare' : isUno ? 'uno' : null,
         turnSeconds: isDeclare && where === 'online' && autoHours ? autoHours * 3600 : null,
       }),
     onSuccess: ({ id: gameId }) => nav(`/game/${gameId}`, { replace: true }),
@@ -138,7 +141,7 @@ export function NewGame() {
         </Card>
       )}
 
-      <Card title="Scoring" className={isDeclare ? 'hidden' : ''}>
+      <Card title="Scoring" className={ruled ? 'hidden' : ''}>
         <div className="grid grid-cols-2 gap-2">
           {(['high_wins', 'low_wins'] as const).map((m) => (
             <button
@@ -186,7 +189,7 @@ export function NewGame() {
         <p className="mt-2 text-xs text-white/50">Tap to sit out or rejoin. Players are seated (and dealt to) in the order you add them.</p>
       </Card>
 
-      <Card title="Cards" className={isDeclare ? 'hidden' : ''}>
+      <Card title="Cards" className={ruled ? 'hidden' : ''}>
         <label className="flex min-h-12 items-center justify-between gap-3">
           <span>
             <span className="font-semibold">Virtual deck</span>
@@ -202,6 +205,24 @@ export function NewGame() {
         )}
       </Card>
 
+      {isUno && (
+        <Card title="UNO scoring">
+          <p className="text-sm text-white/60">
+            Play with your UNO deck. When someone goes out, tap their name and enter the points left in everyone else’s hand —
+            they score the total. Number cards count face value, Skip / Reverse / Draw Two 20, Wild and Wild Draw Four 50.
+          </p>
+          <label className="mt-3 block text-sm text-white/60">
+            First to reach wins
+            <TextInput
+              className="mt-1 font-mono"
+              inputMode="numeric"
+              value={target}
+              onChange={(e) => setTarget(e.target.value.replace(/[^\d]/g, ''))}
+              placeholder="No end — keep a running total"
+            />
+          </label>
+        </Card>
+      )}
       <ErrorNote error={m.error} />
       {isDeclare && (
         <Card title="Ends when someone reaches (optional)">

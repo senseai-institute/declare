@@ -19,6 +19,7 @@ import type {
   StandingRow,
 } from '../../../src/shared/api';
 import { scoreDeclare, takeableFrom } from '../../../src/shared/declare';
+import { scoreUnoRound } from '../../../src/shared/uno';
 import { applyAction, createDeckState, normalizeConfig, viewFor, type DeckAction, type DeckData } from '../../../src/server/deck';
 import { chooseMove } from '../../../src/server/declare/bot';
 import {
@@ -541,6 +542,10 @@ function route(method: string, a: string, id: string, b: string, c: string, body
         const d = body.declare as { declarerId: string; hands: Record<string, number> };
         const out = scoreDeclare(d.declarerId, Object.fromEntries(g.players.map((p) => [p, Number(d.hands[p] ?? 0)])));
         addRound(g, out.scores, { id: d.declarerId, success: out.success });
+      } else if (body.uno) {
+        const u = body.uno as { winnerId: string; hands: Record<string, number> };
+        const out = scoreUnoRound(u.winnerId, Object.fromEntries(g.players.map((p) => [p, p === u.winnerId ? 0 : Number(u.hands[p] ?? 0)])));
+        addRound(g, out.scores, { id: u.winnerId, success: true });
       } else addRound(g, body.scores ?? {});
       return { roundNumber: g.rounds.length, ended: maybeAutoEnd(g) };
     }
