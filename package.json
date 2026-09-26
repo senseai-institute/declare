@@ -13,7 +13,7 @@
     "dev:web": "vite",
     "build": "prisma generate && vite build && npm run build:server",
     "build:server": "esbuild src/server/index.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=dist/server/index.js",
-    "start": "node scripts/check-env.mjs && prisma migrate deploy && node dist/server/index.js",
+    "start": "node scripts/start.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "db:migrate": "prisma migrate dev",
