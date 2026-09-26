@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { Me } from '../../../src/shared/api';
 import { patch } from '../api';
-import { Button, Card, ErrorNote, Page, TextInput } from '../components/ui';
+import { Button, Card, ErrorNote, Form, Page, TextInput } from '../components/ui';
 import { useMe } from '../hooks';
 
 export function Profile() {
@@ -20,10 +20,9 @@ export function Profile() {
   return (
     <Page title="You" back="/">
       <Card>
-        <form
+        <Form
           className="flex flex-col gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
+          onSubmit={() => {
             m.mutate();
           }}
         >
@@ -36,10 +35,10 @@ export function Profile() {
             <TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1" placeholder="you@example.com" />
           </label>
           <ErrorNote error={m.error} />
-          <Button type="submit" disabled={!name.trim() || m.isPending}>
+          <Button type="button" data-submit disabled={!name.trim() || m.isPending}>
             {m.isSuccess ? 'Saved ✓' : 'Save'}
           </Button>
-        </form>
+        </Form>
       </Card>
       <p className="px-1 text-sm text-white/50">
         You're signed in on this device only. There are no passwords yet — keep using the same browser to keep your stats.

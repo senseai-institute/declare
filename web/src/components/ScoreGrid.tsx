@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Button } from './ui';
+import { Button, Form } from './ui';
 
 interface Row {
   id: string;
@@ -59,10 +59,9 @@ export function ScoreGrid({
   }
 
   return (
-    <form
+    <Form
       className="flex flex-col gap-2"
-      onSubmit={(e) => {
-        e.preventDefault();
+      onSubmit={() => {
         void submit();
       }}
     >
@@ -119,9 +118,9 @@ export function ScoreGrid({
           </div>
         );
       })}
-      <Button type="submit" big disabled={busy || (requireAny && !any)} className="mt-1 w-full">
+      <Button type="button" data-submit big disabled={busy || (requireAny && !any)} className="mt-1 w-full">
         {busy ? 'Saving…' : submitLabel}
       </Button>
-    </form>
+    </Form>
   );
 }

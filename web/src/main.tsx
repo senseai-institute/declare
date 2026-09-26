@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 import { DemoBar, startDemo } from './demo/DemoBar';
 import { App } from './App';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -16,6 +17,7 @@ if (import.meta.env.VITE_DEMO) startDemo(queryClient);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       {import.meta.env.VITE_DEMO ? (
         <MemoryRouter>
@@ -28,5 +30,6 @@ createRoot(document.getElementById('root')!).render(
         </BrowserRouter>
       )}
     </QueryClientProvider>
+    </ErrorBoundary>
   </StrictMode>,
 );

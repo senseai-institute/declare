@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { post } from '../api';
-import { Badge, Button, Card, Empty, ErrorNote, LinkButton, Page, Sheet, Spinner, TextInput } from '../components/ui';
+import { Badge, Button, Card, Empty, ErrorNote, Form, LinkButton, Page, Sheet, Spinner, TextInput } from '../components/ui';
 import { fmtDate } from '../format';
 import { useHome, useMe } from '../hooks';
 
@@ -38,10 +38,9 @@ export function Home() {
       ))}
 
       <Card title="Join with a code">
-        <form
+        <Form
           className="flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
+          onSubmit={() => {
             if (code.trim()) nav(`/join/${code.trim().toUpperCase()}`);
           }}
         >
@@ -54,10 +53,10 @@ export function Home() {
             autoCorrect="off"
             spellCheck={false}
           />
-          <Button type="submit" disabled={code.length < 6}>
+          <Button type="button" data-submit disabled={code.length < 6}>
             Join
           </Button>
-        </form>
+        </Form>
       </Card>
 
       <div className="grid grid-cols-2 gap-3">
@@ -141,19 +140,18 @@ function NewGroupSheet({ open, onClose }: { open: boolean; onClose: () => void }
   });
   return (
     <Sheet open={open} onClose={onClose} title="New group">
-      <form
+      <Form
         className="flex flex-col gap-3"
-        onSubmit={(e) => {
-          e.preventDefault();
+        onSubmit={() => {
           if (name.trim()) m.mutate();
         }}
       >
         <TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Beach House Crew" maxLength={40} />
         <ErrorNote error={m.error} />
-        <Button type="submit" big disabled={!name.trim() || m.isPending}>
+        <Button type="button" data-submit big disabled={!name.trim() || m.isPending}>
           Create group
         </Button>
-      </form>
+      </Form>
     </Sheet>
   );
 }

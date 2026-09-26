@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { JoinPreview } from '../../../src/shared/api';
 import { api, post } from '../api';
-import { Badge, Button, Card, ErrorNote, Page, Spinner, TextInput } from '../components/ui';
+import { Badge, Button, Card, ErrorNote, Form, Page, Spinner, TextInput } from '../components/ui';
 import { useMe } from '../hooks';
 import { resetSocket } from '../socket';
 
@@ -80,18 +80,17 @@ export function JoinPage() {
             </Card>
           )}
           <Card title={p.claimable.length ? 'Or join as someone new' : 'Your name'}>
-            <form
+            <Form
               className="flex flex-col gap-3"
-              onSubmit={(e) => {
-                e.preventDefault();
+              onSubmit={() => {
                 if (name.trim()) join.mutate({ displayName: name.trim() });
               }}
             >
               <TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" maxLength={40} />
-              <Button type="submit" big disabled={!name.trim() || join.isPending}>
+              <Button type="button" data-submit big disabled={!name.trim() || join.isPending}>
                 Join
               </Button>
-            </form>
+            </Form>
           </Card>
         </>
       )}
