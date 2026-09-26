@@ -299,19 +299,19 @@ export function resumeComputers() {
 function seed(meId: string) {
   const [mom, dad, sam, nana] = ['Mom', 'Dad', 'Sam', 'Nana'].map((n) => newPlayer(n, true).id);
   const family = [meId, mom, dad, sam, nana];
-  const g: DGroup = { id: uid('g'), name: 'The Family', code: code(), createdAt: new Date(Date.now() - 86400000 * 60).toISOString(), members: family };
+  const g: DGroup = { id: uid('g'), name: 'The Family', code: code(), createdAt: new Date(Date.now() - 86400000 * 60).toISOString(), members: [...family] };
   db.groups.push(g);
 
   // A finished beach trip, scored at the table.
   const trip: DSession = {
     id: uid('s'), groupId: g.id, name: 'Beach week', code: code(), status: 'closed',
-    startedAt: new Date(Date.now() - 86400000 * 30).toISOString(), endedAt: new Date(Date.now() - 86400000 * 24).toISOString(), players: family,
+    startedAt: new Date(Date.now() - 86400000 * 30).toISOString(), endedAt: new Date(Date.now() - 86400000 * 24).toISOString(), players: [...family],
   };
   db.sessions.push(trip);
   const tripGame: DGame = {
     id: uid('m'), sessionId: trip.id, gameType: 'Declare', scoringMode: 'low_wins', targetScore: null, status: 'finished',
     deckEnabled: false, rules: 'declare', winnerPlayerId: null, winnerOverride: false, createdAt: trip.startedAt, endedAt: trip.endedAt,
-    players: family, rounds: [], deck: null,
+    players: [...family], rounds: [], deck: null,
   };
   const hands: [number, number[]][] = [
     [1, [18, 4, 22, 13, 9]], [4, [7, 15, 3, 26, 12]], [2, [11, 9, 5, 17, 20]], [3, [9, 21, 14, 2, 6]],
@@ -330,7 +330,7 @@ function seed(meId: string) {
   db.games.push({
     id: uid('m'), sessionId: tonight.id, gameType: 'Declare', scoringMode: 'low_wins', targetScore: 100, status: 'active',
     deckEnabled: true, rules: 'declare', winnerPlayerId: null, winnerOverride: false, createdAt: now(), endedAt: null,
-    players: tonight.players, rounds: [], deck: { state: newMatch(tonight.players), version: 0 },
+    players: [...tonight.players], rounds: [], deck: { state: newMatch([...tonight.players]), version: 0 },
   });
 }
 
@@ -473,7 +473,7 @@ function route(method: string, a: string, id: string, b: string, c: string, body
       let players = [m.id];
       if (body.groupId) {
         const g = group(body.groupId);
-        players = [...new Set([m.id, ...(body.playerIds ?? []).filter((p: string) => g.members.includes(p))])];
+        players = [...new Set<string>([m.id, ...(body.playerIds ?? []).filter((p: string) => g.members.includes(p))])];
       }
       const s: DSession = { id: uid('s'), groupId: body.groupId || null, name: clean(body.name), code: code(), status: 'active', startedAt: now(), endedAt: null, players };
       db.sessions.push(s);

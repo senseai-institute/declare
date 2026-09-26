@@ -7,7 +7,7 @@ import { GameList } from '../components/GameList';
 import { Invite } from '../components/Invite';
 import { Standings } from '../components/Standings';
 import { DeclareTotals } from '../components/DeclareTotals';
-import { Badge, Button, Card, ErrorNote, LinkButton, Page, Sheet, Spinner, TextInput } from '../components/ui';
+import { Badge, Button, Card, ErrorNote, Form, LinkButton, Page, Sheet, Spinner, TextInput } from '../components/ui';
 import { fmtDate, fmtDuration } from '../format';
 import { useSession } from '../hooks';
 
@@ -176,18 +176,17 @@ function AddPlayerSheet({ open, onClose, s }: { open: boolean; onClose: () => vo
         </div>
       )}
       <div className="mb-2 text-sm text-white/60">Someone without a phone? Add them by name:</div>
-      <form
+      <Form
         className="flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
+        onSubmit={() => {
           if (name.trim()) m.mutate({ displayName: name.trim() });
         }}
       >
         <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" maxLength={40} />
-        <Button type="submit" disabled={!name.trim() || m.isPending}>
+        <Button type="button" data-submit disabled={!name.trim() || m.isPending}>
           Add
         </Button>
-      </form>
+      </Form>
       <div className="mt-3">
         <ErrorNote error={m.error} />
       </div>

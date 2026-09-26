@@ -137,3 +137,28 @@ export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 export function Empty({ children }: { children: ReactNode }) {
   return <p className="py-2 text-sm text-white/50">{children}</p>;
 }
+
+/**
+ * A form that doesn't depend on native form submission, which some in-app
+ * browsers block. Enter in a field, or a button marked `data-submit`, calls onSubmit.
+ */
+export function Form({ onSubmit, className, children }: { onSubmit: () => void; className?: string; children: ReactNode }) {
+  return (
+    <div
+      role="form"
+      className={className}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && !e.defaultPrevented && (e.target as HTMLElement).tagName === 'INPUT') {
+          e.preventDefault();
+          onSubmit();
+        }
+      }}
+      onClick={(e) => {
+        const btn = (e.target as HTMLElement).closest('[data-submit]');
+        if (btn && !(btn as HTMLButtonElement).disabled) onSubmit();
+      }}
+    >
+      {children}
+    </div>
+  );
+}

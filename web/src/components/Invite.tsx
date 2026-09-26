@@ -21,7 +21,13 @@ export function Invite({ code, label }: { code: string; label: string }) {
         /* cancelled — fall through to copy */
       }
     }
-    await navigator.clipboard?.writeText(url);
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // Clipboard refused (some in-app browsers): show the link so it can be copied by hand.
+      window.prompt?.('Copy this link', url);
+      return;
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }

@@ -6,7 +6,7 @@ import { api, post } from '../api';
 import { Invite } from '../components/Invite';
 import { Standings } from '../components/Standings';
 import { DeclareTotals } from '../components/DeclareTotals';
-import { Badge, Button, Card, Empty, ErrorNote, LinkButton, Page, Sheet, Spinner, TextInput } from '../components/ui';
+import { Badge, Button, Card, Empty, ErrorNote, Form, LinkButton, Page, Sheet, Spinner, TextInput } from '../components/ui';
 import { fmtDate } from '../format';
 import { useGroup } from '../hooks';
 
@@ -121,19 +121,18 @@ function AddGuestSheet({ open, onClose, groupId }: { open: boolean; onClose: () 
       <p className="mb-3 text-sm text-white/60">
         For someone without a phone. They can claim this name later by joining with the group code.
       </p>
-      <form
+      <Form
         className="flex flex-col gap-3"
-        onSubmit={(e) => {
-          e.preventDefault();
+        onSubmit={() => {
           if (name.trim()) m.mutate();
         }}
       >
         <TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" maxLength={40} />
         <ErrorNote error={m.error} />
-        <Button type="submit" disabled={!name.trim() || m.isPending}>
+        <Button type="button" data-submit disabled={!name.trim() || m.isPending}>
           Add
         </Button>
-      </form>
+      </Form>
     </Sheet>
   );
 }
