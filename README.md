@@ -68,11 +68,15 @@ npm run typecheck
 
 ## Deploying to Railway
 
-1. Create a project from this repo and add the **PostgreSQL** plugin.
-2. On the app service, set `DATABASE_URL` to `${{Postgres.DATABASE_URL}}` and
-   `NODE_ENV=production`.
-3. Deploy. `railway.json` runs `npm run build`, then `npm start`, which applies
-   migrations (`prisma migrate deploy`) before starting the server. Health check: `/api/health`.
+1. New project → **Deploy from GitHub repo** → pick this repo (it builds from `Dockerfile`).
+2. In the same project: **+ New → Database → PostgreSQL**.
+3. Open the app service → **Variables → New Variable → Add Reference** → `DATABASE_URL` from Postgres
+   (raw value `${{Postgres.DATABASE_URL}}`). Redeploy.
+4. **Settings → Networking → Generate Domain** to get a public URL.
+
+On start, `scripts/start.mjs` checks `DATABASE_URL`, applies migrations (retrying
+while the database comes up) and starts the server. If a deploy fails, the first
+lines of the **Deploy Logs** starting with `[start]` or `✗` say why.
 
 ## Identity
 
